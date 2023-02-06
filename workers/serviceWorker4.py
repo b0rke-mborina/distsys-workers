@@ -14,19 +14,15 @@ async def function(request):
 	try:
 		# wait 0.1 - 0.3 s (pause this coroutine only)
 		randomRequestWaitTime = random.random() * 0.2 + 0.1
-		# print(randomRequestWaitTime)
 		await asyncio.sleep(randomRequestWaitTime)
 
 		# calculate number of words
 		data = await request.json()
 		words = re.sub("[" + string.punctuation + "]", "", data.get("data")).split()
-		# print("Words:", words)
 		result = len(words)
-		# print("Result:", result)
 
 		# wait 0.1 - 0.3 s (pause this coroutine only)
 		randomResponseWaitTime = random.random() * 0.2 + 0.1
-		# print(randomResponseWaitTime)
 		await asyncio.sleep(randomResponseWaitTime)
 		
 		return web.json_response({"name": "worker", "status": "OK", "numberOfWords": result}, status = 200)

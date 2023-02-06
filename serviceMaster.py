@@ -14,7 +14,7 @@ M = 1000								# sample size
 maxNumberOfReqRes = 10000		# for printing
 numberOfReceivedRequests = 0	# count received requests
 numberOfReturnedResponses = 0	# count sent responses
-maxNumberOfTasks = 100000		# for printing
+# maxNumberOfTasks = 100000	# for printing
 numberOfSentTasks = 0			# count sent tasks
 numberOfCompletedTasks = 0		# count completed tasks
 
@@ -33,7 +33,7 @@ async def function(request):
 	try:
 		# make variables visible
 		global N, workers, M
-		global maxNumberOfReqRes
+		global maxNumberOfReqRes # , maxNumberOfTasks
 		global numberOfReceivedRequests, numberOfReturnedResponses
 		global numberOfSentTasks, numberOfCompletedTasks
 
@@ -43,17 +43,8 @@ async def function(request):
 		data = await request.json()
 		codesLength = len(data.get("codes"))
 
-		# print data and status
-		# print("Client id:", data.get("client"))
-		# print("Codes length:", len(data.get("codes")))
-		# for i in data.get("codes"):
-			# print(i[0:30])
-			# print("_______________________")
-
 		# divide all codes into chunks od 1000 lines
 		allCodes = '\n'.join(data.get("codes"))
-		# print(allCodes[0:30])
-		# print("_______________________")
 		codes = allCodes.split("\n")
 		data["codes"] = ["\n".join(codes[i:i+M]) for i in range(0, len(codes), M)]
 
@@ -67,7 +58,7 @@ async def function(request):
 					session.get(f"http://127.0.0.1:{8080 + currentWorker}/", json = { "id": data.get("client"), "data": data.get("codes")[i] })
 				)
 				numberOfSentTasks += 1
-				logging.info(f"New task sent to worker {currentWorker}. Current sent tasks status: {numberOfSentTasks} / {maxNumberOfTasks}")
+				logging.info(f"New task sent to worker {currentWorker}. Current sent tasks status: {numberOfSentTasks}") #  / {maxNumberOfTasks}
 				tasks.append(task)
 				workers["workerWithId" + str(currentWorker)].append(task)
 				if currentWorker == N:
@@ -78,10 +69,9 @@ async def function(request):
 			# collect processed tasks and log completed tasks status
 			results = await asyncio.gather(*tasks)
 			numberOfCompletedTasks += len(results)
-			logging.info(f"Another {len(results)} more tasks completed. Current completed tasks status: {numberOfCompletedTasks} / {maxNumberOfTasks}")
+			logging.info(f"Another {len(results)} more tasks completed. Current completed tasks status: {numberOfCompletedTasks}") #  / {maxNumberOfTasks}
 			results = [await result.json() for result in results]
 			results = [result.get("numberOfWords") for result in results]
-			# print(results)
 
 		# log responses status
 		numberOfReturnedResponses += 1
