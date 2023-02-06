@@ -1,5 +1,7 @@
 # distsys-workers
 
+- requres environment with installed Python
+
 **To start master service run its script by using command (in project root folder):**
 - python serviceMaster.py
 
@@ -31,4 +33,3 @@
 - logging (Python standard library)
 - re (Python standard library)
 - string (Python standard library)
-- vyper (Python standard library)
