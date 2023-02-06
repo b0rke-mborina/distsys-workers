@@ -2,7 +2,6 @@ import asyncio
 import aiohttp
 import pandas as pd
 
-
 print("Running client script...\n")
 
 # generate list of client IDs
@@ -43,7 +42,7 @@ from itertools import islice
 def take(n, iterable):
 	"""Return the first n items of the iterable."""
 	return dict(islice(iterable, n))
-clients = take(5000, clients.items())
+# clients = take(5000, clients.items())
 
 # sending requests for code processing (variables, function, function call)
 tasks = []
@@ -61,6 +60,7 @@ async def processCode():
 			tasks.append(asyncio.create_task(session.get("http://127.0.0.1:8080/", json = { "client": id, "codes": codes })))
 			# print("Task for client", id, "with length", len(codes), "sent.")
 		print("Data sent.\n")
+		print("Waiting for all responses...\n")
 		results = await asyncio.gather(*tasks)
 		results = [await x.json() for x in results]
 		print("Results of data processing for all clients retrieved.\n")
@@ -72,4 +72,4 @@ asyncio.get_event_loop().run_until_complete(processCode())
 processedDataItem = {}
 for result in results:
 	print("Average code lenght for client with ID", result.get("client"), "is", result.get("averageWordcount"))
-print("Length:", len(results), "\n")
+# print("Length:", len(results), "\n")
