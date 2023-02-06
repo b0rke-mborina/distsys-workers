@@ -1,4 +1,3 @@
-# import subprocess
 from aiohttp import web
 import random
 import time
@@ -9,17 +8,15 @@ import aiohttp
 masterPort = 8080
 
 # variables for saving data
-maxNumberOfRequests = 100000	# for printing
-requests = []						# saving received requests
-sentTasks = []						# sent tasks
-completedTasks = []				# completed tasks
-noOfSentTasks = 0					# count sent tasks
-noOfCompletedTasks = 0			# count completed tasks
-
-currentWorkerId = 1
+maxNumberOfReqRes = 10000		# for printing
+numberOfReceivedRequests = 0	# count received requests
+numberOfReturnedResponses = 0	# count sent responses
+maxNumberOfTasks = 100000		# for printing
+numberOfSentTasks = 0			# count sent tasks
+numberOfCompletedTasks = 0		# count completed tasks
 
 # calculate number of workers N (random 5 - 10)
-N = 3 # random.randint(5, 10)
+N = random.randint(5, 10) # 3 random.randint(2, 3) random.randint(3, 5)
 print("Number of workers:", N)
 
 # call workers and give them IDs (save to dict)
@@ -32,79 +29,54 @@ routes = web.RouteTableDef()
 async def function(request):
 	try:
 		# make variables visible
-		global maxNumberOfRequests, requests
-		global sentTasks, completedTasks
-		global noOfSentTasks, noOfCompletedTasks
 		global N, workers
+		global maxNumberOfReqRes
+		global numberOfReceivedRequests, numberOfReturnedResponses
+		global numberOfSentTasks, numberOfCompletedTasks
 
-		# log data status
-		print("New data recieved. Time:", time.ctime()) # time.monotonic()time.strptime(time.localtime())
+		# log requests status
+		numberOfReceivedRequests += 1
+		print(time.ctime(), "New request recieved. Current received requests status:", numberOfReceivedRequests, "/", maxNumberOfReqRes) # time.monotonic()time.strptime(time.localtime())
 		data = await request.json()
-		requests.append(data)
-		print("Current received data status:", len(requests), "/", maxNumberOfRequests)
-		noOfSentTasks += 1
 
 		# print data and status
-		print("Client id:", data.get("client"))
-		print("Codes length:", len(data.get("codes")))
+		# print("Client id:", data.get("client"))
+		# print("Codes length:", len(data.get("codes")))
 		# for i in data.get("codes"):
 			# print(i[0:30])
 			# print("_______________________")
-		# requests.append(data)
-		# print("New data recieved. Current data status:", len(requests), "/", maxNumberOfRequests)
-
-		"""
-		# WORK IN PROGRESS
-		if len(requests) >= N: # N * 1000
-			# send 1000 lines to each worker
-			startTime = time.monotonic_ns()
-
-			# send other lines to workers (1000 to each) when tasks are completed
-			print("Data processing starting...")
-			async with aiohttp.ClientSession(connector = aiohttp.TCPConnector(ssl = False)) as session:
-				# send tasks to processing
-				for i in range(1, N + 1):
-					sentTasks.append(asyncio.create_task(session.get(f"http://127.0.0.1:{8080 + i}/")))
-				noOfSentTasks += N
-				print("Tasks processing:", noOfSentTasks, "/", maxNumberOfRequests)
-
-				# collect processed tasks
-				for i in range(1, N + 1):
-					completedTasks.append(await asyncio.gather(*sentTasks))
-				noOfCompletedTasks += N
-				print("Tasks completed:", noOfCompletedTasks, "/", maxNumberOfRequests)
-
-			# log timestamps of tasks
-			endTime = time.monotonic_ns()
-			print("Time:", endTime - startTime)
-
-			# load processed data
-			completedTasks = [await x.json() for x in completedTasks]
-			
-			# return processed data
-			for data in completedTasks:
-				return web.json_response({"name": "master", "status": "OK", "averageWordcount": len(requests)}, status = 200)
-			# print(completedTasks)
-		"""
 
 		tasks = []
 		results = []
 		async with aiohttp.ClientSession(connector = aiohttp.TCPConnector(ssl = False)) as session:
-			# send task to processing
-			sent = 0
-			while sent < len(data.get("codes")):
-				for i in range(1, N + 1):
-					if sent < len(data.get("codes")):
-						tasks.append(asyncio.create_task(session.get(f"http://127.0.0.1:{8080 + i}/", json = { "data": data.get("codes")[i] }))) # "a a a a a"
-						sent += 1
-			# collect processed tasks
+			# send task to processing and log sent tasks status
+			currentWorker = 1
+			for i in range(len(data.get("codes"))):
+				task = asyncio.create_task(
+					session.get(f"http://127.0.0.1:{8080 + currentWorker}/", json = { "id": data.get("client"), "data": data.get("codes")[i] })
+				)
+				numberOfSentTasks += 1
+				print(time.ctime(), f"New task sent to worker {currentWorker}. Current sent tasks status:", numberOfSentTasks, "/", maxNumberOfTasks)
+				tasks.append(task)
+				workers["workerWithId" + str(currentWorker)].append(task)
+				if currentWorker == N:
+					currentWorker = 1
+				else:
+					currentWorker += 1
+			
+			# collect processed tasks and log completed tasks status
 			results = await asyncio.gather(*tasks)
+			numberOfCompletedTasks += len(results)
+			print(time.ctime(), f"Another {len(results)} more tasks completed. Current completed tasks status:", numberOfCompletedTasks, "/", maxNumberOfTasks)
 			results = [await result.json() for result in results]
 			results = [result.get("numberOfWords") for result in results]
 			print(results)
 
-		# subprocess.call('python serviceWorker.py', creationflags=subprocess.CREATE_NEW_CONSOLE)
-		return web.json_response({"name": "master", "status": "OK", "client": data.get("client"), "averageWordcount": sum(results) / len(results)}, status = 200)
+		# log responses status
+		numberOfReturnedResponses += 1
+		print(time.ctime(), "New response sent. Current sent responses status:", numberOfReturnedResponses, "/", maxNumberOfReqRes)
+
+		return web.json_response({"name": "master", "status": "OK", "client": data.get("client"), "averageWordcount": round(sum(results) / len(results), 2)}, status = 200)
 	except Exception as e:
 		return web.json_response({"name": "master", "error": str(e)}, status = 500)
 
